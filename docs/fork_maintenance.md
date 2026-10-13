@@ -72,6 +72,29 @@ services:
 The container runs `db:migrate` on every boot (`docker/runner.sh`), so the
 fork's migrations apply automatically on the first start of a new image.
 
+### Separate-container setup (`docker-compose.yml`)
+
+The root `docker-compose.yml` runs the API and the frontend as separate
+images. Only the API image needs to come from the fork: the frontend has no
+changes, so `getlago/front:<version>` stays. Build and push the API image:
+
+```bash
+docker build --platform linux/amd64 -f api/Dockerfile -t "$REGISTRY/lago-api:$TAG" api
+docker push "$REGISTRY/lago-api:$TAG"
+```
+
+Then change the one shared backend image in `docker-compose.yml`; `migrate`,
+`api`, `api-worker` and `api-clock` all use it:
+
+```yaml
+x-backend-image: &backend-image
+  image: 904845703353.dkr.ecr.us-east-1.amazonaws.com/lago-api:v1.53.0-fps.1
+```
+
+The `migrate` service applies the fork's migrations on `docker compose up`.
+Keeping `getlago/api` here leaves every premium feature locked, whatever the
+frontend image.
+
 ## Taking a new upstream release
 
 A new upstream release never changes the fork on its own. To take it:
